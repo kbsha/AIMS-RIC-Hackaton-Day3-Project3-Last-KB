@@ -1,0 +1,79 @@
+[
+  {
+    "id": "C001",
+    "skill": "counting",
+    "difficulty": 1,
+    "age_band": "5-6",
+    "stem_en": "How many apples?",
+    "stem_fr": "Combien de pommes?",
+    "stem_kin": "Pome zingahe?",
+    "visual": "apples_3",
+    "answer_int": 3
+  },
+  {
+    "id": "C002",
+    "skill": "counting",
+    "difficulty": 2,
+    "age_band": "5-6",
+    "stem_en": "How many goats?",
+    "stem_fr": "Combien de chèvres?",
+    "stem_kin": "Ihene zingahe?",
+    "visual": "goats_5",
+    "answer_int": 5
+  },
+  {
+    "id": "A001",
+    "skill": "addition",
+    "difficulty": 1,
+    "age_band": "6-7",
+    "stem_en": "2 plus 1 equals?",
+    "stem_fr": "2 plus 1 égale?",
+    "stem_kin": "2 + 1 ni angahe?",
+    "visual": "beads_2_plus_1",
+    "answer_int": 3
+  },
+  {
+    "id": "A002",
+    "skill": "addition",
+    "difficulty": 2,
+    "age_band": "6-7",
+    "stem_en": "3 plus 2 equals?",
+    "stem_fr": "3 plus 2 égale?",
+    "stem_kin": "3 + 2 ni angahe?",
+    "visual": "beads_3_plus_2",
+    "answer_int": 5
+  },
+  {
+    "id": "S001",
+    "skill": "subtraction",
+    "difficulty": 1,
+    "age_band": "7-8",
+    "stem_en": "5 minus 2 equals?",
+    "stem_fr": "5 moins 2 égale?",
+    "stem_kin": "5 - 2 ni angahe?",
+    "visual": "drums_5_minus_2",
+    "answer_int": 3
+  },
+  {
+    "id": "N001",
+    "skill": "number_sense",
+    "difficulty": 1,
+    "age_band": "6-7",
+    "stem_en": "Which number is bigger: 3 or 5?",
+    "stem_fr": "Quel nombre est plus grand: 3 ou 5?",
+    "stem_kin": "Ni iyihe nimero nini: 3 cyangwa 5?",
+    "visual": "compare_3_5",
+    "answer_int": 5
+  },
+  {
+    "id": "W001",
+    "skill": "word_problem",
+    "difficulty": 1,
+    "age_band": "8-9",
+    "stem_en": "Alice has 3 apples. Bob gives her 2 more. How many now?",
+    "stem_fr": "Alice a 3 pommes. Bob lui en donne 2 de plus. Combien maintenant?",
+    "stem_kin": "Alice afite pome 3. Bob amuhe 2 zindi. Ima buri?",
+    "visual": "apples_sharing",
+    "answer_int": 5
+  }
+]
