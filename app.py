@@ -13,6 +13,10 @@ import tempfile
 import os
 import re
 import random
+from streamlit_webrtc import webrtc_streamer, WebRtcMode
+import soundfile as sf
+import numpy as np
+import time
 
 
 st.set_page_config(page_title="AIMS Tutor Demo", layout="wide")
@@ -106,8 +110,20 @@ if voice_assistant and not st.session_state.get('welcomed'):
 
 
 items = loader.by_skill.get(selected_skill, [])
-
-if not items:
+            voice_assistant = st.checkbox("Enable Voice Assistant (auto speak)", value=True, key='voice_assistant')
+            auto_speak = st.checkbox("Auto-speak prompts", value=True, key='auto_speak')
+            st.markdown("---")
+            st.write("**Live Mode (continuous listening)**")
+            if 'live_mode' not in st.session_state:
+                st.session_state['live_mode'] = False
+            start_live = st.button("Start Live Mode")
+            stop_live = st.button("Stop Live Mode")
+            if start_live:
+                st.session_state['live_mode'] = True
+                st.session_state['webrtc_started'] = False
+            if stop_live:
+                st.session_state['live_mode'] = False
+            echo_mode = st.checkbox("Echo child's speech back (speak everything)", value=False, key='echo_mode')
     st.warning("No items found for this skill.")
 else:
     if st.session_state.current_index >= len(items):
@@ -175,6 +191,55 @@ else:
                         tf = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
                         t.save(tf.name)
                         st.audio(tf.name)
+                    except Exception:
+                        pass
+
+        # Live Mode: capture microphone, transcribe and respond automatically
+        if st.session_state.get('live_mode'):
+            st.markdown("**Live Mode:** Listening for the child's voice and responding automatically.")
+            webrtc_ctx = webrtc_streamer(key="live-audio", mode=WebRtcMode.SENDRECV, media_stream_constraints={"audio": True, "video": False})
+
+            if webrtc_ctx and webrtc_ctx.audio_receiver:
+                try:
+                    frames = webrtc_ctx.audio_receiver.get_frames(timeout=0.5)
+                except Exception:
+                    frames = []
+
+                for frm in frames or []:
+                    try:
+                        arr = frm.to_ndarray()  # shape (n_channels, n_samples)
+                        sr = frm.sample_rate
+                        # write to temporary wav
+                        tfw = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
+                        # soundfile expects shape (n_samples, n_channels)
+                        sf.write(tfw.name, arr.T, sr)
+                        # transcribe using existing ASR adapter
+                        transcript = asr.transcribe(tfw.name)
+                        if transcript and transcript.strip():
+                            last = st.session_state.get('last_live_transcript')
+                            if transcript != last:
+                                st.session_state['last_live_transcript'] = transcript
+                                st.markdown(f"**Heard:** {transcript}")
+                                # simple scoring/feedback path
+                                expected = item.get('answer_int')
+                                correct = ResponseScorer.score_response(expected, transcript, item)
+                                fb_text = FeedbackGenerator.generate_feedback(correct, 'en', expected)
+                                # TTS feedback
+                                if voice_assistant:
+                                    try:
+                                        t = gTTS(text=fb_text, lang='en')
+                                        tfb = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
+                                        t.save(tfb.name)
+                                        st.audio(tfb.name)
+                                    except Exception:
+                                        pass
+                                if correct:
+                                    st.success(fb_text)
+                                else:
+                                    st.error(fb_text)
+                                # advance item when correct
+                                if correct:
+                                    st.session_state.current_index = (st.session_state.current_index + 1) % len(items)
                     except Exception:
                         pass
 

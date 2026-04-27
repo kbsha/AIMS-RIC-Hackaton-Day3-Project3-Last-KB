@@ -22,3 +22,6 @@ pytest
 black
 pylint
 gTTS
+streamlit-webrtc
+soundfile
+av
