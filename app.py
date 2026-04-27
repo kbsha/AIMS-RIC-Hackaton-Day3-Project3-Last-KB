@@ -110,20 +110,7 @@ if voice_assistant and not st.session_state.get('welcomed'):
 
 
 items = loader.by_skill.get(selected_skill, [])
-            voice_assistant = st.checkbox("Enable Voice Assistant (auto speak)", value=True, key='voice_assistant')
-            auto_speak = st.checkbox("Auto-speak prompts", value=True, key='auto_speak')
-            st.markdown("---")
-            st.write("**Live Mode (continuous listening)**")
-            if 'live_mode' not in st.session_state:
-                st.session_state['live_mode'] = False
-            start_live = st.button("Start Live Mode")
-            stop_live = st.button("Stop Live Mode")
-            if start_live:
-                st.session_state['live_mode'] = True
-                st.session_state['webrtc_started'] = False
-            if stop_live:
-                st.session_state['live_mode'] = False
-            echo_mode = st.checkbox("Echo child's speech back (speak everything)", value=False, key='echo_mode')
+if not items:
     st.warning("No items found for this skill.")
 else:
     if st.session_state.current_index >= len(items):
