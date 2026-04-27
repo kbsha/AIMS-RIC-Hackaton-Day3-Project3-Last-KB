@@ -12,25 +12,24 @@ from PIL import Image, ImageDraw, ImageFont
 import tempfile
 import os
 import re
+import random
 
 
 st.set_page_config(page_title="AIMS Tutor Demo", layout="wide")
 
 
-def generate_visual(item):
+def generate_visual(item, width=600, height=360):
     visual = item.get('visual', '') or ''
     # extract number from visual string
     m = re.search(r"(\d+)$", visual)
     count = int(m.group(1)) if m else item.get('answer_int', 1)
 
-    width = 400
-    height = 240
     img = Image.new('RGBA', (width, height), (255, 250, 240))
     draw = ImageDraw.Draw(img)
 
     # Draw playful circles for count (wrap to rows)
-    radius = 30
-    padding = 16
+    radius = max(18, min(40, width // 20))
+    padding = max(10, width // 40)
     cols = max(1, width // (radius * 2 + padding))
     x0 = padding
     y0 = 40
@@ -45,11 +44,11 @@ def generate_visual(item):
 
     # Large friendly text
     try:
-        f = ImageFont.truetype("arial.ttf", 28)
+        f = ImageFont.truetype("arial.ttf", max(16, width // 20))
     except Exception:
         f = ImageFont.load_default()
 
-    draw.text((width - 140, 10), f"{item.get('id')}", fill=(80, 80, 80), font=f)
+    draw.text((width - int(width * 0.25), 10), f"{item.get('id')}", fill=(80, 80, 80), font=f)
     draw.text((20, height - 50), f"{item.get('stem_en')}", fill=(60, 60, 60), font=f)
 
     tf = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
@@ -79,6 +78,7 @@ with st.sidebar:
     skill_options = list(loader.by_skill.keys()) or ["counting"]
     selected_skill = st.selectbox("Skill", skill_options)
     st.markdown("---")
+    page = st.selectbox("Page", ["Play", "Full Puzzle"])
     st.checkbox("Play mode (one item at a time)", value=True, key='play_mode')
 
 
@@ -99,12 +99,45 @@ else:
     if st.session_state.current_index >= len(items):
         st.session_state.current_index = 0
 
-    item = items[st.session_state.current_index] if st.session_state.play_mode else None
+    # always use the current index item for the puzzle or play modes
+    item = items[st.session_state.current_index]
 
     col_main, col_side = st.columns([3, 1])
 
     with col_main:
-        if st.session_state.play_mode:
+        if page == "Full Puzzle":
+            st.markdown(f"### 🧩 Full Puzzle — {item.get('stem_en')}  🎯")
+            st.write("A bigger, more playful activity — tap the big buttons to answer.")
+
+            img_path = generate_visual(item, width=900, height=540)
+            st.image(img_path, use_column_width=True)
+
+            st.markdown("**Question:** How many objects do you see?")
+            correct = item.get('answer_int') or 1
+            # build options with a few distractors
+            opts = [correct, max(1, correct - 1), correct + 1, correct + 2]
+            opts = list(dict.fromkeys(opts))
+            random.shuffle(opts)
+
+            cols_opts = st.columns(len(opts))
+            for i, opt in enumerate(opts):
+                with cols_opts[i]:
+                    if st.button(f"{opt} 👆", key=f"puzzle_{item.get('id')}_{opt}"):
+                        if opt == correct:
+                            st.success("Yay! You counted correctly!")
+                            st.balloons()
+                            st.session_state.score += 1
+                        else:
+                            st.error("Almost — try counting again!")
+
+            if st.button("Show hint"):
+                hint = "Try counting the colorful circles from left to right."
+                t = gTTS(text=hint, lang='en')
+                tf = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
+                t.save(tf.name)
+                st.audio(tf.name)
+
+        elif st.session_state.play_mode:
             st.markdown(f"### {item.get('stem_en')}  🎯")
             st.write(item.get('stem_fr'))
             st.write(item.get('stem_kin'))
