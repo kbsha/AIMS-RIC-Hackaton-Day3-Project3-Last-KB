@@ -79,6 +79,8 @@ with st.sidebar:
     selected_skill = st.selectbox("Skill", skill_options)
     st.markdown("---")
     page = st.selectbox("Page", ["Play", "Full Puzzle"])
+    voice_assistant = st.checkbox("Enable Voice Assistant (auto speak)", value=True, key='voice_assistant')
+    auto_speak = st.checkbox("Auto-speak prompts", value=True, key='auto_speak')
     st.checkbox("Play mode (one item at a time)", value=True, key='play_mode')
 
 
@@ -89,6 +91,18 @@ if 'current_index' not in st.session_state:
 
 learner = LearnerState(learner_id)
 store.add_learner(learner_id, learner_name)
+
+# Welcome audio once per session when voice assistant enabled
+if voice_assistant and not st.session_state.get('welcomed'):
+    try:
+        welcome_text = f"Welcome {learner_name}! Let's play and learn together."
+        t = gTTS(text=welcome_text, lang='en')
+        tfw = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
+        t.save(tfw.name)
+        st.audio(tfw.name)
+    except Exception:
+        pass
+    st.session_state['welcomed'] = True
 
 
 items = loader.by_skill.get(selected_skill, [])
@@ -112,6 +126,18 @@ else:
             img_path = generate_visual(item, width=900, height=540)
             st.image(img_path, use_column_width=True)
 
+            # auto-speak the puzzle prompt once per item
+            if voice_assistant and auto_speak and st.session_state.get('last_spoken') != item.get('id'):
+                try:
+                    speak_text = f"How many objects do you see? {item.get('stem_en')}"
+                    t = gTTS(text=speak_text, lang='en')
+                    tfq = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
+                    t.save(tfq.name)
+                    st.audio(tfq.name)
+                except Exception:
+                    pass
+                st.session_state['last_spoken'] = item.get('id')
+
             st.markdown("**Question:** How many objects do you see?")
             correct = item.get('answer_int') or 1
             # build options with a few distractors
@@ -124,18 +150,33 @@ else:
                 with cols_opts[i]:
                     if st.button(f"{opt} 👆", key=f"puzzle_{item.get('id')}_{opt}"):
                         if opt == correct:
-                            st.success("Yay! You counted correctly!")
+                            fb = "Yay! You counted correctly!"
+                            st.success(fb)
                             st.balloons()
                             st.session_state.score += 1
                         else:
-                            st.error("Almost — try counting again!")
+                            fb = "Almost — try counting again!"
+                            st.error(fb)
+
+                        if voice_assistant:
+                            try:
+                                t = gTTS(text=fb, lang='en')
+                                tfb = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
+                                t.save(tfb.name)
+                                st.audio(tfb.name)
+                            except Exception:
+                                pass
 
             if st.button("Show hint"):
                 hint = "Try counting the colorful circles from left to right."
-                t = gTTS(text=hint, lang='en')
-                tf = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
-                t.save(tf.name)
-                st.audio(tf.name)
+                if voice_assistant:
+                    try:
+                        t = gTTS(text=hint, lang='en')
+                        tf = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
+                        t.save(tf.name)
+                        st.audio(tf.name)
+                    except Exception:
+                        pass
 
         elif st.session_state.play_mode:
             st.markdown(f"### {item.get('stem_en')}  🎯")
