@@ -17,6 +17,7 @@ from streamlit_webrtc import webrtc_streamer, WebRtcMode
 import soundfile as sf
 import numpy as np
 import time
+import streamlit.components.v1 as components
 
 
 st.set_page_config(page_title="AIMS Tutor Demo", layout="wide")
@@ -82,7 +83,7 @@ with st.sidebar:
     skill_options = list(loader.by_skill.keys()) or ["counting"]
     selected_skill = st.selectbox("Skill", skill_options)
     st.markdown("---")
-    page = st.selectbox("Page", ["Play", "Full Puzzle", "Dashboard", "Reports", "Settings", "Search"])
+    page = st.selectbox("Page", ["Play", "Full Puzzle", "Interactive Puzzle", "Dashboard", "Reports", "Settings", "Search"])
     voice_assistant = st.checkbox("Enable Voice Assistant (auto speak)", value=True, key='voice_assistant')
     auto_speak = st.checkbox("Auto-speak prompts", value=True, key='auto_speak')
     st.checkbox("Play mode (one item at a time)", value=True, key='play_mode')
@@ -195,6 +196,96 @@ elif page == "Search":
             if st.button(f"Use this item", key=f"use_{it.get('id')}"):
                 st.session_state.current_index = items.index(it) if it in items else 0
                 st.success("Selected item for Play mode")
+
+elif page == "Interactive Puzzle":
+    st.header("Interactive Puzzle — Drag & Drop")
+    items = loader.by_skill.get(selected_skill, [])
+    if not items:
+        st.warning("No items found for this skill.")
+    else:
+        item = items[st.session_state.current_index]
+        count = item.get('answer_int') or 1
+
+        # Build HTML/JS interactive zone
+        html = f"""
+        <style>
+        .wrapper{{font-family: Arial, Helvetica, sans-serif;}}
+        .board{{display:flex;gap:20px;align-items:flex-start}}
+        .scene{{width:65%;background:linear-gradient(180deg,#fff8f0,#fff4ea);padding:18px;border-radius:14px;box-shadow:0 8px 20px rgba(0,0,0,0.08)}}
+        .dots{{display:flex;flex-wrap:wrap;gap:12px;padding:12px}}
+        .dot{{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;transform:translateY(0);transition:transform .35s ease, box-shadow .25s ease}}
+        .dot.glow{{box-shadow:0 8px 24px rgba(255,165,80,0.35);transform:translateY(-6px) scale(1.05)}}
+        .tray{{width:32%;padding:12px}}
+        .tiles{{display:flex;flex-wrap:wrap;gap:10px}}
+        .tile{{width:72px;height:72px;border-radius:12px;background:#fff;border:2px dashed #ffdca8;display:flex;align-items:center;justify-content:center;font-size:20px;cursor:grab;user-select:none;transition:transform .2s ease, box-shadow .2s ease}}
+        .tile:active{{cursor:grabbing;transform:scale(.98)}}
+        .dropzone{{margin-top:14px;padding:18px;border-radius:12px;background:#fff6e8;border:2px dashed #ffcc88;min-height:120px;display:flex;align-items:center;justify-content:center}}
+        .msg{{margin-top:12px;font-weight:700}}
+        </style>
+
+        <div class="wrapper">
+          <div class="board">
+            <div class="scene">
+              <h3 style="margin:0 0 8px 0">{item.get('stem_en')}</h3>
+              <div class="dots" id="dots"></div>
+              <div style="margin-top:8px;font-size:14px;color:#666">Drag the correct number tile into the drop area.</div>
+            </div>
+            <div class="tray">
+              <div class="tiles" id="tiles"></div>
+              <div class="dropzone" id="dropzone">Drop here</div>
+              <div class="msg" id="msg"></div>
+            </div>
+          </div>
+        </div>
+
+        <script>
+        const colors = ['#FF6347','#FFD700','#66CDAA','#87CEFA','#DDA0DD','#FFA07A','#98FB98'];
+        const count = {count};
+        const dots = document.getElementById('dots');
+        for(let i=0;i<count;i++){{
+            const d=document.createElement('div'); d.className='dot'; d.style.background=colors[i%colors.length]; d.innerText='';
+            dots.appendChild(d);
+        }}
+
+        // build tiles up to max(9)
+        const tiles = document.getElementById('tiles');
+        const maxTile = Math.max(6, count+2);
+        for(let n=1;n<=maxTile;n++){{
+            const t=document.createElement('div'); t.className='tile'; t.draggable=true; t.innerText=n; t.dataset.val=n;
+            t.addEventListener('dragstart', ev=>{{ ev.dataTransfer.setData('text/plain', ev.target.dataset.val); }});
+            tiles.appendChild(t);
+        }}
+
+        const drop = document.getElementById('dropzone');
+        drop.addEventListener('dragover', e=>{{ e.preventDefault(); drop.style.background='#fff2d9'; }});
+        drop.addEventListener('dragleave', e=>{{ drop.style.background=''; }});
+        drop.addEventListener('drop', e=>{{ e.preventDefault(); drop.style.background=''; const v = parseInt(e.dataTransfer.getData('text/plain'));
+            const msg = document.getElementById('msg');
+            if(v===count){{
+                msg.innerText='🎉 Great! That is correct!'; msg.style.color='#198754';
+                // animate dots
+                document.querySelectorAll('.dot').forEach((el,i)=>{{ setTimeout(()=> el.classList.add('glow'), i*80); setTimeout(()=> el.classList.remove('glow'), 1000+i*80); }});
+            }} else {{
+                msg.innerText='Try again — not quite.'; msg.style.color='#c82333';
+                // shake animation
+                drop.animate([{{transform:'translateX(-6px)'}},{{transform:'translateX(6px)'}},{{transform:'translateX(0)'}}], {{duration:300}});
+            }}
+        }});
+        </script>
+        """
+
+        components.html(html, height=520)
+
+        st.markdown("---")
+        st.write("If the child answered correctly, press the button below to log the response and reward them.")
+        if st.button("Mark Correct"):
+            store.add_response(learner_id, selected_skill, item.get('id'), True, 'interactive_drag')
+            learner.record_response(selected_skill, True)
+            st.success("Logged correct response — nice! 🎈")
+        if st.button("Mark Incorrect"):
+            store.add_response(learner_id, selected_skill, item.get('id'), False, 'interactive_drag')
+            learner.record_response(selected_skill, False)
+            st.info("Logged incorrect response — keep practicing.")
 
 elif page in ["Play", "Full Puzzle"]:
     if not items:
